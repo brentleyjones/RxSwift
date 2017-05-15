@@ -38,6 +38,7 @@ public typealias Driver<E> = SharedSequence<DriverSharingStrategy, E>
 
 public struct DriverSharingStrategy: SharingStrategyProtocol {
     public static var scheduler: SchedulerType { return driverObserveOnScheduler }
+    public static var subscriptionScheduler: SchedulerType { return driverSubscribeOnScheduler }
     public static func share<E>(_ source: Observable<E>) -> Observable<E> {
         return source.shareReplayLatestWhileConnected()
     }
@@ -57,15 +58,18 @@ extension SharedSequenceConvertibleType where SharingStrategy == DriverSharingSt
  **This shouldn't be used in normal release builds.**
 */
 public func driveOnScheduler(_ scheduler: SchedulerType, action: () -> ()) {
+    let originalSubscribeOnScheduler = driverSubscribeOnScheduler
     let originalObserveOnScheduler = driverObserveOnScheduler
+    driverSubscribeOnScheduler = scheduler
     driverObserveOnScheduler = scheduler
 
     action()
 
     // If you remove this line , compiler buggy optimizations will change behavior of this code
-    _forceCompilerToStopDoingInsaneOptimizationsThatBreakCode(driverObserveOnScheduler)
+    _forceCompilerToStopDoingInsaneOptimizationsThatBreakCode(driverSubscribeOnScheduler, driverObserveOnScheduler)
     // Scary, I know
 
+    driverSubscribeOnScheduler = originalSubscribeOnScheduler
     driverObserveOnScheduler = originalObserveOnScheduler
 }
 
@@ -75,7 +79,7 @@ public func driveOnScheduler(_ scheduler: SchedulerType, action: () -> ()) {
     import func Foundation.arc4random
 #endif
 
-func _forceCompilerToStopDoingInsaneOptimizationsThatBreakCode(_ scheduler: SchedulerType) {
+func _forceCompilerToStopDoingInsaneOptimizationsThatBreakCode(_ subscribeOnScheduler: SchedulerType, _ observeOnScheduler: SchedulerType) {
     let a: Int32 = 1
 #if os(Linux)
     let b = 314 + Int32(Glibc.random() & 1)
@@ -83,8 +87,10 @@ func _forceCompilerToStopDoingInsaneOptimizationsThatBreakCode(_ scheduler: Sche
     let b = 314 + Int32(arc4random() & 1)
 #endif
     if a == b {
-        print(scheduler)
+        print(subscribeOnScheduler)
+        print(observeOnScheduler)
     }
 }
 
+fileprivate var driverSubscribeOnScheduler: SchedulerType = ConcurrentMainScheduler.instance
 fileprivate var driverObserveOnScheduler: SchedulerType = MainScheduler.instance

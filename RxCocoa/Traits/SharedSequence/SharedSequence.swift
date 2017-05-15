@@ -67,7 +67,12 @@ public struct SharedSequence<S: SharingStrategyProtocol, Element> : SharedSequen
  */
 public protocol SharingStrategyProtocol {
     /**
-     Scheduled on which all sequence events will be delivered.
+     Scheduler on which the sequence will be subscribed on.
+     */
+    static var subscriptionScheduler: SchedulerType { get }
+
+    /**
+     Scheduler on which all sequence events will be delivered.
     */
     static var scheduler: SchedulerType { get }
 
@@ -79,6 +84,14 @@ public protocol SharingStrategyProtocol {
      implementing promises or lazy loading chains.
     */
     static func share<E>(_ source: Observable<E>) -> Observable<E>
+}
+
+extension SharingStrategyProtocol {
+
+    /// Defaults to `scheduler`
+    static var subscriptionScheduler: SchedulerType {
+        return scheduler
+    }
 }
 
 /**
@@ -108,7 +121,7 @@ extension SharedSequence {
     - returns: An observable sequence with no elements.
     */
     public static func empty() -> SharedSequence<S, E> {
-        return SharedSequence(raw: Observable.empty().subscribeOn(S.scheduler))
+        return SharedSequence(raw: Observable.empty().subscribeOn(S.subscriptionScheduler))
     }
 
     /**
@@ -127,7 +140,7 @@ extension SharedSequence {
     - returns: An observable sequence containing the single specified element.
     */
     public static func just(_ element: E) -> SharedSequence<S, E> {
-        return SharedSequence(raw: Observable.just(element).subscribeOn(S.scheduler))
+        return SharedSequence(raw: Observable.just(element).subscribeOn(S.subscriptionScheduler))
     }
 
     /**
@@ -150,7 +163,7 @@ extension SharedSequence {
     - returns: The observable sequence whose elements are pulled from the given arguments.
     */
     public static func of(_ elements: E ...) -> SharedSequence<S, E> {
-        let source = Observable.from(elements, scheduler: S.scheduler)
+        let source = Observable.from(elements, scheduler: S.subscriptionScheduler)
         return SharedSequence(raw: source)
     }
 }
@@ -166,7 +179,7 @@ extension SharedSequence where Element : SignedInteger {
      */
     public static func interval(_ period: RxTimeInterval)
         -> SharedSequence<S, E> {
-        return SharedSequence(Observable.interval(period, scheduler: S.scheduler))
+        return SharedSequence(Observable.interval(period, scheduler: S.subscriptionScheduler))
     }
 }
 
@@ -184,7 +197,7 @@ extension SharedSequence where Element: SignedInteger {
      */
     public static func timer(_ dueTime: RxTimeInterval, period: RxTimeInterval)
         -> SharedSequence<S, E> {
-        return SharedSequence(Observable.timer(dueTime, period: period, scheduler: S.scheduler))
+        return SharedSequence(Observable.timer(dueTime, period: period, scheduler: S.subscriptionScheduler))
     }
 }
 
